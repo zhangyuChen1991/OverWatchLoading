@@ -11,7 +11,17 @@
     tools:context="com.czy.demo.MainActivity">
 
     <com.chenzy.owloading.OWLoadingView
+        android:id="@+id/owloading"
         android:layout_width="300dp"
         android:layout_height="300dp"
         android:layout_centerInParent="true"></com.chenzy.owloading.OWLoadingView>
+
+    <Button
+        android:id="@+id/btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:text="开始"
+        />
 </RelativeLayout>

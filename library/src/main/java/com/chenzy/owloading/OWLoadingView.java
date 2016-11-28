@@ -10,6 +10,7 @@ import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -29,7 +30,7 @@ public class OWLoadingView extends View {
     private Paint paint;
     private float sin30 = (float) Math.sin(30f * 2f * Math.PI / 360f);
     private float cos30 = (float) Math.cos(30f * 2f * Math.PI / 360f);
-    private ValueAnimator showAnimator, hideAnimator;
+    private ValueAnimator animator;
     private int nowAnimatorTargetPosition = 0;
     private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
     private int nowAnimatorFlag = ShowAnimatorFlag;
@@ -56,66 +57,21 @@ public class OWLoadingView extends View {
     }
 
     private void initAnimator() {
-        showAnimator = ObjectAnimator.ofFloat(0, 1);
-        showAnimator.setDuration(390);
-        showAnimator.addListener(animatorListener);
-        showAnimator.addUpdateListener(animatorUpdateListener);
-
-        hideAnimator = ObjectAnimator.ofFloat(1, 0);
-        hideAnimator.setDuration(390);
-        hideAnimator.addListener(animatorListener);
-        hideAnimator.addUpdateListener(animatorUpdateListener);
+        animator = ObjectAnimator.ofFloat(0, 1);
+        animator.setDuration(390);
+        animator.addListener(animatorListener);
+        animator.addUpdateListener(animatorUpdateListener);
+        animator.setRepeatCount(-1);
     }
 
-    private Animator.AnimatorListener animatorListener = new Animator.AnimatorListener() {
-        @Override
-        public void onAnimationStart(Animator animator) {
-
+    private void resetHexagons() {
+        Log.v(TAG, "resetHexagons..");
+        for (int i = 0; i < hexagons.length; i++) {
+            hexagons[i].setScale(0);
+            hexagons[i].setAlpha(0);
         }
+    }
 
-        @Override
-        public void onAnimationEnd(Animator animator) {
-            if (stopAnim)
-                return;
-            nowAnimatorTargetPosition++;
-            if (nowAnimatorTargetPosition == 7) {
-                nowAnimatorTargetPosition = 0;
-                nowAnimatorFlag = nowAnimatorFlag == ShowAnimatorFlag ? HideAnimatorFlag : ShowAnimatorFlag;
-            }
-
-            initAnimator();
-            if (nowAnimatorFlag == ShowAnimatorFlag)
-                showAnimator.start();
-            else
-                hideAnimator.start();
-        }
-
-        @Override
-        public void onAnimationCancel(Animator animator) {
-
-        }
-
-        @Override
-        public void onAnimationRepeat(Animator animator) {
-
-        }
-    };
-
-    private ValueAnimator.AnimatorUpdateListener animatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
-        @Override
-        public void onAnimationUpdate(ValueAnimator valueAnimator) {
-            if (stopAnim)
-                return;
-            float nowValue = (float) valueAnimator.getAnimatedValue();
-            int nowAlpha = (int) (nowValue * 255);
-            float nowScale = nowValue;
-
-            hexagons[nowAnimatorTargetPosition].setAlpha(nowAlpha);
-            hexagons[nowAnimatorTargetPosition].setScale(nowScale);
-
-            invalidate();
-        }
-    };
 
     private void initPaint() {
         paint = new Paint();
@@ -126,26 +82,9 @@ public class OWLoadingView extends View {
         paint.setPathEffect(corEffect);
     }
 
-
-    @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        viewHeight = getMeasuredHeight();
-        viewWidth = getMeasuredWidth();
-        if (viewWidth != 0 && viewHeight != 0) {
-            center.x = viewWidth / 2f;
-            center.y = viewHeight / 2f;
-            float spaceRate = 1 / 100f;
-            space = viewWidth <= viewHeight ? viewWidth * spaceRate : viewHeight * spaceRate;
-            hexagonRadius = (float) ((viewWidth - 2 * space) / (3 * Math.sqrt(3)));
-            initPaint();
-            initHexagonCenters();
-            startAnim();
-        }
-    }
-
     /**
      * 设置颜色
+     *
      * @param color
      */
     public void setColor(int color) {
@@ -158,28 +97,22 @@ public class OWLoadingView extends View {
      */
     public void startAnim() {
         stopAnim = false;
-        showAnimator.start();
+        initAnimator();
+        animator.start();
     }
 
     /**
      * 中止动画
      */
     public void stopAnim() {
-        stopAnim = true;
-    }
+        animator.cancel();
+        animator.removeAllListeners();
+        animator = null;
+        nowAnimatorFlag = ShowAnimatorFlag;
+        nowAnimatorTargetPosition = 0;
 
-    @Override
-    protected void onVisibilityChanged(View changedView, int visibility) {
-        super.onVisibilityChanged(changedView, visibility);
-        if (visibility == INVISIBLE || visibility == GONE)
-            stopAnim();
-    }
-
-    @Override
-    public void onWindowFocusChanged(boolean hasWindowFocus) {
-        super.onWindowFocusChanged(hasWindowFocus);
-        if (!hasWindowFocus())
-            stopAnim();
+        resetHexagons();
+        invalidate();
     }
 
     private void initHexagonCenters() {
@@ -207,6 +140,68 @@ public class OWLoadingView extends View {
     }
 
 
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        viewHeight = getMeasuredHeight();
+        viewWidth = getMeasuredWidth();
+        if (viewWidth != 0 && viewHeight != 0) {
+            center.x = viewWidth / 2f;
+            center.y = viewHeight / 2f;
+            float spaceRate = 1 / 100f;
+            space = viewWidth <= viewHeight ? viewWidth * spaceRate : viewHeight * spaceRate;
+            hexagonRadius = (float) ((viewWidth - 2 * space) / (3 * Math.sqrt(3)));
+            initPaint();
+            initHexagonCenters();
+        }
+    }
+
+    private Animator.AnimatorListener animatorListener = new Animator.AnimatorListener() {
+        @Override
+        public void onAnimationStart(Animator animator) {
+
+        }
+
+        @Override
+        public void onAnimationEnd(Animator animator) {
+
+        }
+
+        @Override
+        public void onAnimationCancel(Animator animator) {
+
+        }
+
+        @Override
+        public void onAnimationRepeat(Animator animator) {
+            nowAnimatorTargetPosition++;
+            if (nowAnimatorTargetPosition == 7) {
+                nowAnimatorTargetPosition = 0;
+                nowAnimatorFlag = nowAnimatorFlag == ShowAnimatorFlag ? HideAnimatorFlag : ShowAnimatorFlag;
+            }
+        }
+    };
+
+    private ValueAnimator.AnimatorUpdateListener animatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        @Override
+        public void onAnimationUpdate(ValueAnimator valueAnimator) {
+
+            float nowValue = (float) valueAnimator.getAnimatedValue();
+            if (nowAnimatorFlag == HideAnimatorFlag) {
+                nowValue = 1 - nowValue;
+            }
+            Log.d(TAG, "nowValue = " + nowValue);
+
+            int nowAlpha = (int) (nowValue * 255);
+            float nowScale = nowValue;
+
+            hexagons[nowAnimatorTargetPosition].setAlpha(nowAlpha);
+            hexagons[nowAnimatorTargetPosition].setScale(nowScale);
+
+            invalidate();
+        }
+    };
+
     /**
      * 六边形
      */
@@ -219,7 +214,6 @@ public class OWLoadingView extends View {
         public float radius;
         //六个顶点
         private Point[] vertexs = new Point[6];
-        ;
 
         public Hexagon(Point centerPoint, float radius) {
             this.centerPoint = centerPoint;
@@ -233,6 +227,7 @@ public class OWLoadingView extends View {
         }
 
         private int calculatePointsPosition() {
+            Log.d(TAG, "calculatePointsPosition");
             if (centerPoint == null) {
                 return -1;
             }
