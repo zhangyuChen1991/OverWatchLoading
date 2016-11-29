@@ -10,7 +10,7 @@
 
 demo效果:
 
-![image](https://github.com/zhangyuChen1991/some_sources/blob/master/ow_loading_show_img.gif)
+![image](https://github.com/zhangyuChen1991/some_sources/blob/master/ow_loading_show_img1.gif)
 
 **使用**
 >这个小项目已经将loading浓缩成一个自定义view：OWLoadingView，只需要在需要的布局中正常引用指定宽高即可。

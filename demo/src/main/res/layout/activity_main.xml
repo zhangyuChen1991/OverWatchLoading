@@ -12,8 +12,8 @@
 
     <com.chenzy.owloading.OWLoadingView
         android:id="@+id/owloading"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:layout_centerInParent="true"></com.chenzy.owloading.OWLoadingView>
 
     <Button

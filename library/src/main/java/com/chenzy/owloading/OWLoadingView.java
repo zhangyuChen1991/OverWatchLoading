@@ -2,11 +2,13 @@ package com.chenzy.owloading;
 
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
+import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.CornerPathEffect;
+import android.graphics.Interpolator;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
@@ -31,7 +33,6 @@ public class OWLoadingView extends View {
     private float sin30 = (float) Math.sin(30f * 2f * Math.PI / 360f);
     private float cos30 = (float) Math.cos(30f * 2f * Math.PI / 360f);
     private ValueAnimator animator;
-    private int nowAnimatorTargetPosition = 0;
     private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
     private int nowAnimatorFlag = ShowAnimatorFlag;
     private boolean stopAnim = false;
@@ -57,9 +58,8 @@ public class OWLoadingView extends View {
     }
 
     private void initAnimator() {
-        animator = ObjectAnimator.ofFloat(0, 1);
-        animator.setDuration(390);
-        animator.addListener(animatorListener);
+        animator = ObjectAnimator.ofInt(0, 10);
+        animator.setDuration(200);
         animator.addUpdateListener(animatorUpdateListener);
         animator.setRepeatCount(-1);
     }
@@ -105,11 +105,11 @@ public class OWLoadingView extends View {
      * 中止动画
      */
     public void stopAnim() {
+        stopAnim = true;
         animator.cancel();
         animator.removeAllListeners();
         animator = null;
         nowAnimatorFlag = ShowAnimatorFlag;
-        nowAnimatorTargetPosition = 0;
 
         resetHexagons();
         invalidate();
@@ -156,48 +156,37 @@ public class OWLoadingView extends View {
         }
     }
 
-    private Animator.AnimatorListener animatorListener = new Animator.AnimatorListener() {
-        @Override
-        public void onAnimationStart(Animator animator) {
-
-        }
-
-        @Override
-        public void onAnimationEnd(Animator animator) {
-
-        }
-
-        @Override
-        public void onAnimationCancel(Animator animator) {
-
-        }
-
-        @Override
-        public void onAnimationRepeat(Animator animator) {
-            nowAnimatorTargetPosition++;
-            if (nowAnimatorTargetPosition == 7) {
-                nowAnimatorTargetPosition = 0;
-                nowAnimatorFlag = nowAnimatorFlag == ShowAnimatorFlag ? HideAnimatorFlag : ShowAnimatorFlag;
-            }
-        }
-    };
-
     private ValueAnimator.AnimatorUpdateListener animatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
         @Override
         public void onAnimationUpdate(ValueAnimator valueAnimator) {
 
-            float nowValue = (float) valueAnimator.getAnimatedValue();
-            if (nowAnimatorFlag == HideAnimatorFlag) {
-                nowValue = 1 - nowValue;
+            if (nowAnimatorFlag == ShowAnimatorFlag) {//逐个显示出来
+                hexagons[0].addScale();
+                hexagons[0].addAlpha();
+                for (int i = 0; i < hexagons.length - 1; i++) {
+                    if (hexagons[i].getScale() >= 0.7) {
+                        hexagons[i + 1].addScale();
+                        hexagons[i + 1].addAlpha();
+                    }
+                }
+
+                if (hexagons[6].getScale() == 1) {//当最后一个六边形都完全显示时，切换模式，下一轮逐个消失
+                    nowAnimatorFlag = HideAnimatorFlag;
+                }
+
+            } else {//逐个消失
+                hexagons[0].subScale();
+                hexagons[0].subAlpha();
+                for (int i = 0; i < hexagons.length - 1; i++) {
+                    if (hexagons[i].getScale() <= 0.3) {
+                        hexagons[i + 1].subScale();
+                        hexagons[i + 1].subAlpha();
+                    }
+                }
+                if (hexagons[6].getScale() == 0) {//当最后一个六边形都完全消失时，切换模式，下一轮逐个开始显示
+                    nowAnimatorFlag = ShowAnimatorFlag;
+                }
             }
-            Log.d(TAG, "nowValue = " + nowValue);
-
-            int nowAlpha = (int) (nowValue * 255);
-            float nowScale = nowValue;
-
-            hexagons[nowAnimatorTargetPosition].setAlpha(nowAlpha);
-            hexagons[nowAnimatorTargetPosition].setScale(nowScale);
-
             invalidate();
         }
     };
@@ -206,6 +195,7 @@ public class OWLoadingView extends View {
      * 六边形
      */
     private class Hexagon {
+
         //缩放值
         private float scale = 0;
         //透明度
@@ -227,7 +217,6 @@ public class OWLoadingView extends View {
         }
 
         private int calculatePointsPosition() {
-            Log.d(TAG, "calculatePointsPosition");
             if (centerPoint == null) {
                 return -1;
             }
@@ -263,6 +252,10 @@ public class OWLoadingView extends View {
             this.alpha = alpha;
         }
 
+        public int getAlpha() {
+            return alpha;
+        }
+
         /**
          * 设置缩放比例
          *
@@ -273,6 +266,48 @@ public class OWLoadingView extends View {
             calculatePointsPosition();
         }
 
+        public void addScale() {
+            if (scale == 1)
+                return;
+
+            scale += 0.05;
+            scale = scale > 1 ? 1 : scale;
+            calculatePointsPosition();
+        }
+
+        public void subScale() {
+            if (scale == 0) {
+                return;
+            }
+            scale -= 0.05;
+            scale = scale < 0 ? 0 : scale;
+            calculatePointsPosition();
+        }
+
+        public void addAlpha() {
+            if (alpha == 255) {
+                return;
+            }
+            alpha += 13;
+            alpha = alpha > 255 ? 255 : alpha;
+        }
+
+        public void subAlpha() {
+            if (alpha == 0) {
+                return;
+            }
+            alpha -= 13;
+            alpha = alpha < 0 ? 0 : alpha;
+        }
+
+        /**
+         * 获取当前缩放比例
+         *
+         * @return
+         */
+        public float getScale() {
+            return scale;
+        }
     }
 
     private class Point {
