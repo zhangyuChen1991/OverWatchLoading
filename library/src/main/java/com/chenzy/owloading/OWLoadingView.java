@@ -270,7 +270,7 @@ public class OWLoadingView extends View {
             if (scale == 1)
                 return;
 
-            scale += 0.05;
+            scale += 0.06;
             scale = scale > 1 ? 1 : scale;
             calculatePointsPosition();
         }
@@ -279,7 +279,7 @@ public class OWLoadingView extends View {
             if (scale == 0) {
                 return;
             }
-            scale -= 0.05;
+            scale -= 0.06;
             scale = scale < 0 ? 0 : scale;
             calculatePointsPosition();
         }
@@ -288,7 +288,7 @@ public class OWLoadingView extends View {
             if (alpha == 255) {
                 return;
             }
-            alpha += 13;
+            alpha += 15;
             alpha = alpha > 255 ? 255 : alpha;
         }
 
@@ -296,7 +296,7 @@ public class OWLoadingView extends View {
             if (alpha == 0) {
                 return;
             }
-            alpha -= 13;
+            alpha -= 15;
             alpha = alpha < 0 ? 0 : alpha;
         }
 
