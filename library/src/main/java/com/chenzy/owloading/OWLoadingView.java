@@ -22,38 +22,46 @@ import android.view.View;
 
 public class OWLoadingView extends View {
     private static final String TAG = "OWLoadingView";
+    //view的宽度和高度
     private int viewWidth, viewHeight;
+    //view的中心点
     private Point center = new Point();
+    //六边形的中心点
     private Point[] hexagonCenters = new Point[6];
+    //六边形实例
     private Hexagon[] hexagons = new Hexagon[7];
+    //六边形之间的间距
     private float space;
+    //六边形的半径
     private float hexagonRadius;
     private int color = Color.parseColor("#ff9900");//默认橙色
     private Paint paint;
     private float sin30 = (float) Math.sin(30f * 2f * Math.PI / 360f);
     private float cos30 = (float) Math.cos(30f * 2f * Math.PI / 360f);
     private ValueAnimator animator;
+    //进行显示动画和进行隐藏动画的标志常量
     private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
     private int nowAnimatorFlag = ShowAnimatorFlag;
-    private boolean stopAnim = false;
+    //触发下一个动画开始的缩放临界点值
+    private final float scaleCritical = 0.7f;
 
     public OWLoadingView(Context context) {
         super(context);
-        init(context, null);
+        init();
     }
 
     public OWLoadingView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init(context, attrs);
+        init();
     }
 
     public OWLoadingView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init(context, attrs);
+        init();
 
     }
 
-    private void init(Context context, AttributeSet attrs) {
+    private void init() {
         initAnimator();
     }
 
@@ -65,7 +73,6 @@ public class OWLoadingView extends View {
     }
 
     private void resetHexagons() {
-        Log.v(TAG, "resetHexagons..");
         for (int i = 0; i < hexagons.length; i++) {
             hexagons[i].setScale(0);
             hexagons[i].setAlpha(0);
@@ -96,7 +103,6 @@ public class OWLoadingView extends View {
      * 开始动画
      */
     public void startAnim() {
-        stopAnim = false;
         initAnimator();
         animator.start();
     }
@@ -105,7 +111,6 @@ public class OWLoadingView extends View {
      * 中止动画
      */
     public void stopAnim() {
-        stopAnim = true;
         animator.cancel();
         animator.removeAllListeners();
         animator = null;
@@ -133,7 +138,6 @@ public class OWLoadingView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
         for (int i = 0; i < 7; i++) {
             hexagons[i].drawHexagon(canvas, paint);
         }
@@ -164,7 +168,7 @@ public class OWLoadingView extends View {
                 hexagons[0].addScale();
                 hexagons[0].addAlpha();
                 for (int i = 0; i < hexagons.length - 1; i++) {
-                    if (hexagons[i].getScale() >= 0.7) {
+                    if (hexagons[i].getScale() >= scaleCritical) {
                         hexagons[i + 1].addScale();
                         hexagons[i + 1].addAlpha();
                     }
@@ -178,7 +182,7 @@ public class OWLoadingView extends View {
                 hexagons[0].subScale();
                 hexagons[0].subAlpha();
                 for (int i = 0; i < hexagons.length - 1; i++) {
-                    if (hexagons[i].getScale() <= 0.3) {
+                    if (hexagons[i].getScale() <= 1 - scaleCritical) {
                         hexagons[i + 1].subScale();
                         hexagons[i + 1].subAlpha();
                     }
@@ -204,6 +208,10 @@ public class OWLoadingView extends View {
         public float radius;
         //六个顶点
         private Point[] vertexs = new Point[6];
+        //缩放程度每次改变量 变化范围为[0,1]
+        private final float scaleChange = 0.06f;
+        //透明度每次改变量 变化范围为[0,255]
+        private final int alpahChange = 15;
 
         public Hexagon(Point centerPoint, float radius) {
             this.centerPoint = centerPoint;
@@ -270,7 +278,7 @@ public class OWLoadingView extends View {
             if (scale == 1)
                 return;
 
-            scale += 0.06;
+            scale += scaleChange;
             scale = scale > 1 ? 1 : scale;
             calculatePointsPosition();
         }
@@ -279,7 +287,7 @@ public class OWLoadingView extends View {
             if (scale == 0) {
                 return;
             }
-            scale -= 0.06;
+            scale -= scaleChange;
             scale = scale < 0 ? 0 : scale;
             calculatePointsPosition();
         }
@@ -288,7 +296,7 @@ public class OWLoadingView extends View {
             if (alpha == 255) {
                 return;
             }
-            alpha += 15;
+            alpha += alpahChange;
             alpha = alpha > 255 ? 255 : alpha;
         }
 
@@ -296,7 +304,7 @@ public class OWLoadingView extends View {
             if (alpha == 0) {
                 return;
             }
-            alpha -= 15;
+            alpha -= alpahChange;
             alpha = alpha < 0 ? 0 : alpha;
         }
 
