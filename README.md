@@ -20,3 +20,6 @@ demo效果:
 >* startAnim()　开始动画;
 >* stopAnim()　中止动画;
 >* setColor(int color)　设置填充的颜色;
+
+**相关原理解析**
+>效果实现的流程及原理分析请参考[这里](http://blog.csdn.net/chen_zhang_yu/article/details/53396801)
