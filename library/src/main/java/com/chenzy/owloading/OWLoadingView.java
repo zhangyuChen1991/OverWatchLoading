@@ -1,18 +1,19 @@
 package com.chenzy.owloading;
 
-import android.animation.Animator;
 import android.animation.ObjectAnimator;
-import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.CornerPathEffect;
-import android.graphics.Interpolator;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PixelFormat;
+import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 
 /**
@@ -20,7 +21,7 @@ import android.view.View;
  * Created by zhangyu on 2016/11/28.
  */
 
-public class OWLoadingView extends View {
+public class OWLoadingView extends SurfaceView {
     private static final String TAG = "OWLoadingView";
     //view的宽度和高度
     private int viewWidth, viewHeight;
@@ -38,12 +39,14 @@ public class OWLoadingView extends View {
     private Paint paint;
     private float sin30 = (float) Math.sin(30f * 2f * Math.PI / 360f);
     private float cos30 = (float) Math.cos(30f * 2f * Math.PI / 360f);
-    private ValueAnimator animator;
     //进行显示动画和进行隐藏动画的标志常量
     private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
     private int nowAnimatorFlag = ShowAnimatorFlag;
     //触发下一个动画开始的缩放临界点值
     private final float scaleCritical = 0.7f;
+    //控制动画运行的标示位
+    private boolean runAnim = false;
+    private SurfaceHolder surfaceHolder;
 
     public OWLoadingView(Context context) {
         super(context);
@@ -62,16 +65,40 @@ public class OWLoadingView extends View {
     }
 
     private void init() {
-        initAnimator();
+        surfaceHolder = getHolder();
+        setZOrderOnTop(true);
+        surfaceHolder.setFormat(PixelFormat.TRANSLUCENT);//背景透明
     }
 
-    private void initAnimator() {
-        animator = ObjectAnimator.ofInt(0, 10);
-        animator.setDuration(200);
-        animator.addUpdateListener(animatorUpdateListener);
-        animator.setRepeatCount(-1);
+    //绘制图案
+    private void draw() {
+        Canvas canvas = surfaceHolder.lockCanvas();
+        paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR));
+        canvas.drawPaint(paint);
+        paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OVER));
+
+        for (int i = 0; i < 7; i++) {
+            hexagons[i].drawHexagon(canvas, paint);
+        }
+        surfaceHolder.unlockCanvasAndPost(canvas);
     }
 
+    private Runnable animRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                while (runAnim) {
+                    Thread.sleep(2);
+                    flush();
+                    draw();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    };
+
+    //重置六边形数据
     private void resetHexagons() {
         for (int i = 0; i < hexagons.length; i++) {
             hexagons[i].setScale(0);
@@ -79,12 +106,12 @@ public class OWLoadingView extends View {
         }
     }
 
-
     private void initPaint() {
         paint = new Paint();
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(color);
+        //圆角处理
         CornerPathEffect corEffect = new CornerPathEffect(hexagonRadius * 0.1f);
         paint.setPathEffect(corEffect);
     }
@@ -103,23 +130,23 @@ public class OWLoadingView extends View {
      * 开始动画
      */
     public void startAnim() {
-        initAnimator();
-        animator.start();
+        runAnim = true;
+        new Thread(animRunnable).start();
     }
 
     /**
      * 中止动画
      */
     public void stopAnim() {
-        animator.cancel();
-        animator.removeAllListeners();
-        animator = null;
+        runAnim = false;
         nowAnimatorFlag = ShowAnimatorFlag;
-
         resetHexagons();
-        invalidate();
+        draw();
     }
 
+    /**
+     * 初始化六边形中心店坐标
+     */
     private void initHexagonCenters() {
         float bigR = (float) ((1.5 * hexagonRadius + space) / cos30);
         hexagonCenters[0] = new Point(center.x - bigR * sin30, center.y - bigR * cos30);
@@ -133,14 +160,6 @@ public class OWLoadingView extends View {
             hexagons[i] = new Hexagon(hexagonCenters[i], hexagonRadius);
         }
         hexagons[6] = new Hexagon(center, hexagonRadius);
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        for (int i = 0; i < 7; i++) {
-            hexagons[i].drawHexagon(canvas, paint);
-        }
     }
 
 
@@ -160,40 +179,38 @@ public class OWLoadingView extends View {
         }
     }
 
-    private ValueAnimator.AnimatorUpdateListener animatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
-        @Override
-        public void onAnimationUpdate(ValueAnimator valueAnimator) {
-
-            if (nowAnimatorFlag == ShowAnimatorFlag) {//逐个显示出来
-                hexagons[0].addScale();
-                hexagons[0].addAlpha();
-                for (int i = 0; i < hexagons.length - 1; i++) {
-                    if (hexagons[i].getScale() >= scaleCritical) {
-                        hexagons[i + 1].addScale();
-                        hexagons[i + 1].addAlpha();
-                    }
-                }
-
-                if (hexagons[6].getScale() == 1) {//当最后一个六边形都完全显示时，切换模式，下一轮逐个消失
-                    nowAnimatorFlag = HideAnimatorFlag;
-                }
-
-            } else {//逐个消失
-                hexagons[0].subScale();
-                hexagons[0].subAlpha();
-                for (int i = 0; i < hexagons.length - 1; i++) {
-                    if (hexagons[i].getScale() <= 1 - scaleCritical) {
-                        hexagons[i + 1].subScale();
-                        hexagons[i + 1].subAlpha();
-                    }
-                }
-                if (hexagons[6].getScale() == 0) {//当最后一个六边形都完全消失时，切换模式，下一轮逐个开始显示
-                    nowAnimatorFlag = ShowAnimatorFlag;
+    /**
+     * 刷新数据
+     */
+    private void flush() {
+        if (nowAnimatorFlag == ShowAnimatorFlag) {//逐个显示出来
+            hexagons[0].addScale();
+            hexagons[0].addAlpha();
+            for (int i = 0; i < hexagons.length - 1; i++) {
+                if (hexagons[i].getScale() >= scaleCritical) {
+                    hexagons[i + 1].addScale();
+                    hexagons[i + 1].addAlpha();
                 }
             }
-            invalidate();
+
+            if (hexagons[6].getScale() == 1) {//当最后一个六边形都完全显示时，切换模式，下一轮逐个消失
+                nowAnimatorFlag = HideAnimatorFlag;
+            }
+
+        } else {//逐个消失
+            hexagons[0].subScale();
+            hexagons[0].subAlpha();
+            for (int i = 0; i < hexagons.length - 1; i++) {
+                if (hexagons[i].getScale() <= 1 - scaleCritical) {
+                    hexagons[i + 1].subScale();
+                    hexagons[i + 1].subAlpha();
+                }
+            }
+            if (hexagons[6].getScale() == 0) {//当最后一个六边形都完全消失时，切换模式，下一轮逐个开始显示
+                nowAnimatorFlag = ShowAnimatorFlag;
+            }
         }
-    };
+    }
 
     /**
      * 六边形
@@ -209,9 +226,9 @@ public class OWLoadingView extends View {
         //六个顶点
         private Point[] vertexs = new Point[6];
         //缩放程度每次改变量 变化范围为[0,1]
-        private final float scaleChange = 0.06f;
+        private final float scaleChange = 0.07f;
         //透明度每次改变量 变化范围为[0,255]
-        private final int alpahChange = 15;
+        private final int alpahChange = 18;
 
         public Hexagon(Point centerPoint, float radius) {
             this.centerPoint = centerPoint;
@@ -329,4 +346,5 @@ public class OWLoadingView extends View {
         public Point() {
         }
     }
+
 }
