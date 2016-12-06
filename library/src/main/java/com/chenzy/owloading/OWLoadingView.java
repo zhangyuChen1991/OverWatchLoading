@@ -1,7 +1,5 @@
 package com.chenzy.owloading;
 
-import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -14,7 +12,6 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.View;
 
 /**
  * 仿守望先锋的loading加载
@@ -47,6 +44,8 @@ public class OWLoadingView extends SurfaceView {
     //控制动画运行的标示位
     private boolean runAnim = false;
     private SurfaceHolder surfaceHolder;
+    //基准数据是否已初始化
+    private boolean baseDataInited = false;
 
     public OWLoadingView(Context context) {
         super(context);
@@ -70,9 +69,13 @@ public class OWLoadingView extends SurfaceView {
         surfaceHolder.setFormat(PixelFormat.TRANSLUCENT);//背景透明
     }
 
-    //绘制图案
+    /**
+     * 绘制图案
+     */
     private void draw() {
         Canvas canvas = surfaceHolder.lockCanvas();
+        if(canvas == null)
+            return;
         paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR));
         canvas.drawPaint(paint);
         paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OVER));
@@ -128,10 +131,15 @@ public class OWLoadingView extends SurfaceView {
 
     /**
      * 开始动画
+     *
+     * @return 动画是否启动成功，true 启动成功;false 启动失败
      */
-    public void startAnim() {
+    public boolean startAnim() {
+        if (runAnim || !baseDataInited)
+            return false;
         runAnim = true;
         new Thread(animRunnable).start();
+        return true;
     }
 
     /**
@@ -162,7 +170,6 @@ public class OWLoadingView extends SurfaceView {
         hexagons[6] = new Hexagon(center, hexagonRadius);
     }
 
-
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -176,6 +183,7 @@ public class OWLoadingView extends SurfaceView {
             hexagonRadius = (float) ((viewWidth - 2 * space) / (3 * Math.sqrt(3)));
             initPaint();
             initHexagonCenters();
+            baseDataInited = true;
         }
     }
 
@@ -346,5 +354,4 @@ public class OWLoadingView extends SurfaceView {
         public Point() {
         }
     }
-
 }
