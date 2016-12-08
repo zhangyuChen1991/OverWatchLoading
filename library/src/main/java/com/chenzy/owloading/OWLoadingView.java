@@ -67,6 +67,7 @@ public class OWLoadingView extends SurfaceView {
         surfaceHolder = getHolder();
         setZOrderOnTop(true);
         surfaceHolder.setFormat(PixelFormat.TRANSLUCENT);//背景透明
+        initPaint();
     }
 
     /**
@@ -114,9 +115,6 @@ public class OWLoadingView extends SurfaceView {
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(color);
-        //圆角处理
-        CornerPathEffect corEffect = new CornerPathEffect(hexagonRadius * 0.1f);
-        paint.setPathEffect(corEffect);
     }
 
     /**
@@ -156,6 +154,7 @@ public class OWLoadingView extends SurfaceView {
      * 初始化六边形中心店坐标
      */
     private void initHexagonCenters() {
+        //1.5*r 加上竖直方向space 等于R*cos30(博客里画的图是不匹配的)
         float bigR = (float) ((1.5 * hexagonRadius + space) / cos30);
         hexagonCenters[0] = new Point(center.x - bigR * sin30, center.y - bigR * cos30);
         hexagonCenters[1] = new Point(center.x + bigR * sin30, center.y - bigR * cos30);
@@ -181,8 +180,9 @@ public class OWLoadingView extends SurfaceView {
             float spaceRate = 1 / 100f;
             space = viewWidth <= viewHeight ? viewWidth * spaceRate : viewHeight * spaceRate;
             hexagonRadius = (float) ((viewWidth - 2 * space) / (3 * Math.sqrt(3)));
-            initPaint();
             initHexagonCenters();
+            //圆角处理
+            paint.setPathEffect(new CornerPathEffect(hexagonRadius * 0.1f));
             baseDataInited = true;
         }
     }
