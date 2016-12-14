@@ -8,18 +8,25 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuffXfermode;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 /**
- * 仿守望先锋的loading加载
- * Created by zhangyu on 2016/11/28.
+ * 仿守望先锋的loading加载 Created by zhangyu on 2016/11/28.
  */
 
 public class OWLoadingView extends SurfaceView {
     private static final String TAG = "OWLoadingView";
+    private static final int ANIMATION_RUN = 0x1;
+    private static final int ANIMATION_STOP = 0x2;
+    //进行显示动画和进行隐藏动画的标志常量
+    private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
+    //触发下一个动画开始的缩放临界点值
+    private final float scaleCritical = 0.7f;
     //view的宽度和高度
     private int viewWidth, viewHeight;
     //view的中心点
@@ -36,16 +43,14 @@ public class OWLoadingView extends SurfaceView {
     private Paint paint;
     private float sin30 = (float) Math.sin(30f * 2f * Math.PI / 360f);
     private float cos30 = (float) Math.cos(30f * 2f * Math.PI / 360f);
-    //进行显示动画和进行隐藏动画的标志常量
-    private final int ShowAnimatorFlag = 0x1137, HideAnimatorFlag = 0x1139;
     private int nowAnimatorFlag = ShowAnimatorFlag;
-    //触发下一个动画开始的缩放临界点值
-    private final float scaleCritical = 0.7f;
     //控制动画运行的标示位
     private boolean runAnim = false;
     private SurfaceHolder surfaceHolder;
     //基准数据是否已初始化
     private boolean baseDataInited = false;
+
+    private Handler handler;
 
     public OWLoadingView(Context context) {
         super(context);
@@ -60,7 +65,6 @@ public class OWLoadingView extends SurfaceView {
     public OWLoadingView(Context context, AttributeSet attrs) {
         super(context, attrs);
         init();
-
     }
 
     private void init() {
@@ -68,6 +72,26 @@ public class OWLoadingView extends SurfaceView {
         setZOrderOnTop(true);
         surfaceHolder.setFormat(PixelFormat.TRANSLUCENT);//背景透明
         initPaint();
+        handler = new Handler(Looper.getMainLooper()) {
+            @Override public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case ANIMATION_RUN:
+                        flush();
+                        draw();
+                        if (runAnim) {
+                            Message message = Message.obtain();
+                            message.what = ANIMATION_RUN;
+                            handler.sendMessageDelayed(message, 2);
+                        }
+                        break;
+                    case ANIMATION_STOP:
+                        nowAnimatorFlag = HideAnimatorFlag;
+                        resetHexagons();
+                        draw();
+                        break;
+                }
+            }
+        };
     }
 
     /**
@@ -75,8 +99,9 @@ public class OWLoadingView extends SurfaceView {
      */
     private void draw() {
         Canvas canvas = surfaceHolder.lockCanvas();
-        if(canvas == null)
+        if (canvas == null) {
             return;
+        }
         paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR));
         canvas.drawPaint(paint);
         paint.setXfermode(new PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OVER));
@@ -87,26 +112,11 @@ public class OWLoadingView extends SurfaceView {
         surfaceHolder.unlockCanvasAndPost(canvas);
     }
 
-    private Runnable animRunnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                while (runAnim) {
-                    Thread.sleep(2);
-                    flush();
-                    draw();
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    };
-
     //重置六边形数据
     private void resetHexagons() {
-        for (int i = 0; i < hexagons.length; i++) {
-            hexagons[i].setScale(0);
-            hexagons[i].setAlpha(0);
+        for (Hexagon hexagon : hexagons) {
+            hexagon.setScale(0);
+            hexagon.setAlpha(0);
         }
     }
 
@@ -119,8 +129,6 @@ public class OWLoadingView extends SurfaceView {
 
     /**
      * 设置颜色
-     *
-     * @param color
      */
     public void setColor(int color) {
         this.color = color;
@@ -133,10 +141,11 @@ public class OWLoadingView extends SurfaceView {
      * @return 动画是否启动成功，true 启动成功;false 启动失败
      */
     public boolean startAnim() {
-        if (runAnim || !baseDataInited)
+        if (!baseDataInited) {
             return false;
+        }
         runAnim = true;
-        new Thread(animRunnable).start();
+        handler.sendEmptyMessage(ANIMATION_RUN);
         return true;
     }
 
@@ -145,9 +154,7 @@ public class OWLoadingView extends SurfaceView {
      */
     public void stopAnim() {
         runAnim = false;
-        nowAnimatorFlag = ShowAnimatorFlag;
-        resetHexagons();
-        draw();
+        handler.sendEmptyMessage(ANIMATION_STOP);
     }
 
     /**
@@ -204,7 +211,6 @@ public class OWLoadingView extends SurfaceView {
             if (hexagons[6].getScale() == 1) {//当最后一个六边形都完全显示时，切换模式，下一轮逐个消失
                 nowAnimatorFlag = HideAnimatorFlag;
             }
-
         } else {//逐个消失
             hexagons[0].subScale();
             hexagons[0].subAlpha();
@@ -225,18 +231,18 @@ public class OWLoadingView extends SurfaceView {
      */
     private class Hexagon {
 
-        //缩放值
-        private float scale = 0;
-        //透明度
-        private int alpha = 0;
-        public Point centerPoint;
-        public float radius;
-        //六个顶点
-        private Point[] vertexs = new Point[6];
         //缩放程度每次改变量 变化范围为[0,1]
         private final float scaleChange = 0.07f;
         //透明度每次改变量 变化范围为[0,255]
         private final int alpahChange = 18;
+        public Point centerPoint;
+        public float radius;
+        //缩放值
+        private float scale = 0;
+        //透明度
+        private int alpha = 0;
+        //六个顶点
+        private Point[] vertexs = new Point[6];
 
         public Hexagon(Point centerPoint, float radius) {
             this.centerPoint = centerPoint;
@@ -255,34 +261,29 @@ public class OWLoadingView extends SurfaceView {
             }
             //从最上方顺时针数1-6给各顶点标序号 共6个点
             vertexs[0] = new Point(centerPoint.x, centerPoint.y - radius * scale);
-            vertexs[1] = new Point(centerPoint.x + radius * cos30 * scale, centerPoint.y - radius * sin30 * scale);
-            vertexs[2] = new Point(centerPoint.x + radius * cos30 * scale, centerPoint.y + radius * sin30 * scale);
+            vertexs[1] =
+                new Point(centerPoint.x + radius * cos30 * scale, centerPoint.y - radius * sin30 * scale);
+            vertexs[2] =
+                new Point(centerPoint.x + radius * cos30 * scale, centerPoint.y + radius * sin30 * scale);
             vertexs[3] = new Point(centerPoint.x, centerPoint.y + radius * scale);
-            vertexs[4] = new Point(centerPoint.x - radius * cos30 * scale, centerPoint.y + radius * sin30 * scale);
-            vertexs[5] = new Point(centerPoint.x - radius * cos30 * scale, centerPoint.y - radius * sin30 * scale);
+            vertexs[4] =
+                new Point(centerPoint.x - radius * cos30 * scale, centerPoint.y + radius * sin30 * scale);
+            vertexs[5] =
+                new Point(centerPoint.x - radius * cos30 * scale, centerPoint.y - radius * sin30 * scale);
             return 1;
         }
-
 
         private Path getPath() {
             Path path = new Path();
             for (int i = 0; i < 6; i++) {
-                if (i == 0)
+                if (i == 0) {
                     path.moveTo(vertexs[i].x, vertexs[i].y);
-                else
+                } else {
                     path.lineTo(vertexs[i].x, vertexs[i].y);
+                }
             }
             path.close();
             return path;
-        }
-
-        /**
-         * 设置透明度
-         *
-         * @param alpha
-         */
-        public void setAlpha(int alpha) {
-            this.alpha = alpha;
         }
 
         public int getAlpha() {
@@ -290,18 +291,16 @@ public class OWLoadingView extends SurfaceView {
         }
 
         /**
-         * 设置缩放比例
-         *
-         * @param scale
+         * 设置透明度
          */
-        public void setScale(float scale) {
-            this.scale = scale;
-            calculatePointsPosition();
+        public void setAlpha(int alpha) {
+            this.alpha = alpha;
         }
 
         public void addScale() {
-            if (scale == 1)
+            if (scale == 1) {
                 return;
+            }
 
             scale += scaleChange;
             scale = scale > 1 ? 1 : scale;
@@ -335,11 +334,17 @@ public class OWLoadingView extends SurfaceView {
 
         /**
          * 获取当前缩放比例
-         *
-         * @return
          */
         public float getScale() {
             return scale;
+        }
+
+        /**
+         * 设置缩放比例
+         */
+        public void setScale(float scale) {
+            this.scale = scale;
+            calculatePointsPosition();
         }
     }
 
