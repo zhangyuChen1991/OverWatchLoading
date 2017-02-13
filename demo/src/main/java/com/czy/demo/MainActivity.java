@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         owLoadingView = (OWLoadingView) findViewById(R.id.owloading);
-        owLoadingView.setAutoStartAnim(true);//设置自动开启动画
+//        owLoadingView.setAutoStartAnim(true);//设置自动开启动画
         btn = (Button) findViewById(R.id.btn);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
