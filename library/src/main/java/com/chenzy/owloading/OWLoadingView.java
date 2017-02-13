@@ -12,6 +12,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 
 /**
  * 仿守望先锋的loading加载
@@ -46,6 +47,8 @@ public class OWLoadingView extends SurfaceView {
     private SurfaceHolder surfaceHolder;
     //基准数据是否已初始化
     private boolean baseDataInited = false;
+    //是否自动开始动画
+    private boolean autoStartAnim = false;
 
     public OWLoadingView(Context context) {
         super(context);
@@ -137,6 +140,7 @@ public class OWLoadingView extends SurfaceView {
             return false;
         runAnim = true;
         new Thread(animRunnable).start();
+        setVisibility(View.VISIBLE);
         return true;
     }
 
@@ -148,6 +152,16 @@ public class OWLoadingView extends SurfaceView {
         nowAnimatorFlag = ShowAnimatorFlag;
         resetHexagons();
         draw();
+        setVisibility(View.GONE);
+    }
+
+    /**
+     * 设置初始化完成后是否自动开始动画。
+     * 如果开启，建议在页面onStop()时调用{@link #stopAnim}()方法中止动画，节约内存开销
+     * @param autoStartAnim
+     */
+    public void setAutoStartAnim(boolean autoStartAnim) {
+        this.autoStartAnim = autoStartAnim;
     }
 
     /**
@@ -289,6 +303,7 @@ public class OWLoadingView extends SurfaceView {
             return alpha;
         }
 
+
         /**
          * 设置缩放比例
          *
@@ -354,4 +369,14 @@ public class OWLoadingView extends SurfaceView {
         public Point() {
         }
     }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        Log.d(TAG,"onWindowFocusChanged  "+hasWindowFocus);
+        if(hasWindowFocus && autoStartAnim){
+            startAnim();
+        }
+    }
+
 }
